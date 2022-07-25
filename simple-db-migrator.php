@@ -15,7 +15,7 @@
 
 require_once __DIR__ . "/../vendor/autoload.php";
 
-// Load database credentials from database.php 
+// Load database credentials from database.php
 // where  $dbPass, $dbName, $dbHost, $dbUser are defined.
 include __DIR__ . "/../database.php";
 
@@ -75,7 +75,7 @@ class Migrator
 
     $this->L->debug("Runing SQL");
     $this->L->debug($sql);
-    return $this->db->query($sql);
+    return $this->db->exec($sql);
   }
 
   /*
@@ -222,7 +222,6 @@ class Migrator
     $this->db
       ->prepare("DELETE FROM db_migrations WHERE version = ?")
       ->execute([$lastRanMigration]);
-
     $this->L->warning("Rollback completed");
   }
 }
