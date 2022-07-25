@@ -2,7 +2,7 @@
 /*
  * ॐ  Om Brahmarppanam  ॐ
  *
- * schema/migrator.php
+ * simple-db-migrator.php
  * Created at: Thu Jul 20 2022 19:34:40 GMT+0530 (GMT+05:30)
  *
  * Copyright 2022 Harish Karumuthil <harish2704@gmail.com>
@@ -13,21 +13,34 @@
  *
  */
 
-require_once __DIR__ . "/../vendor/autoload.php";
-
-// Load database credentials from database.php
-// where  $dbPass, $dbName, $dbHost, $dbUser are defined.
-include __DIR__ . "/../database.php";
-
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Logger\ConsoleLogger;
-use Symfony\Component\Console\Application;
+// Load database credentials from database.php where database configuration is defined
+// eg: $dbConf = [ "dsn" => "mysql:host=localhost;dbname=migrationtest", "user" => "dbuser", "password" => "dbpass", ];
+include __DIR__ . "/db.conf.php";
 
 $MIGRAION_ROOT = __DIR__ . "/migrations";
 $L;
+
+class Logger
+{
+  private $levels = ["error", "warning", "info", "log", "debug"];
+  public function __construct($level)
+  {
+    $this->level = $level;
+  }
+
+  private function _log($level, $args)
+  {
+    echo date("D M d, Y G:i") . " [$level] : " . implode(", ", $args) . "\n";
+  }
+
+  public function __call($name, $arguments)
+  {
+    $targetLevel = array_search($name, $this->levels);
+    if ($targetLevel !== false && $targetLevel <= $this->level) {
+      $this->_log($name, $arguments);
+    }
+  }
+}
 
 class MigrationItem
 {
@@ -62,8 +75,8 @@ class Migrator
 {
   public function __construct()
   {
-    global $dbPass, $dbName, $dbHost, $dbUser, $L;
-    $this->db = new PDO("mysql:host=$dbHost;dbname=$dbName", $dbUser, $dbPass);
+    global $dbConf, $L;
+    $this->db = new PDO($dbConf["dsn"], $dbConf["user"], $dbConf["password"]);
     $this->L = $L;
   }
 
@@ -159,7 +172,7 @@ class Migrator
       $this->db
         ->prepare(
           "INSERT INTO db_migrations
-          (version, created_at, up_sql, down_sql) VALUES (?, now(), ?, ?)"
+             (version, created_at, up_sql, down_sql) VALUES (?, now(), ?, ?)"
         )
         ->execute([$migrationV, $sql, $migrationItem->getDownSql()]);
     }
@@ -226,38 +239,61 @@ class Migrator
   }
 }
 
-class DbMigrate extends Command
+class Application
 {
-  protected function configure()
+  public function __construct()
   {
-    $this->setName("db:migrate");
-    $this->setDescription("Migrate DB to the latest version.");
-    $this->addOption(
-      "setup",
-      "s",
-      InputOption::VALUE_NONE,
-      "Create db_migrations table in db"
-    );
-    $this->addOption(
-      "down",
-      "d",
-      InputOption::VALUE_NONE,
-      "Roll back last migration"
-    );
+    $this->opts = getopt("dsvh", ["down", "setup", "verbose", "help"]);
+    $this->logLevel = 1;
+    $verbose = $this->getOption("verbose");
+    if ($verbose) {
+      if ($verbose === true) {
+        $verbose = [$verbose];
+      }
+      $this->logLevel += count($verbose);
+    }
   }
 
-  protected function execute(InputInterface $input, OutputInterface $output)
+  private function getOption($name)
+  {
+    foreach ([$name[0], $name] as $k) {
+      if (isset($this->opts[$k])) {
+        return $this->opts[$k] === false ? true : $this->opts[$k];
+      }
+    }
+  }
+
+  function help()
+  {
+    echo "Description:
+  A simple database migration tool
+
+Usage:
+  php simple-db-migrator.php [options]
+
+Options:
+  -s, --setup           Create db_migrations table in db and run all pending migrations
+  -d, --down            Roll back last migration
+  -h, --help            Display help for the given command. When no command is given display help for the db:migrate command
+  -v|vv|vvv, --verbose  Increase the verbosity of messages: 1-3 => info,log,debug
+";
+  }
+
+  function execute()
   {
     global $L;
-    $L = new ConsoleLogger($output);
+    if ($this->getOption("help")) {
+      return $this->help();
+    }
+    $L = new Logger($this->logLevel);
     $L->info("Starting migrator");
-    $runSetup = $input->getOption("setup");
+    $runSetup = $this->getOption("setup");
     $migrator = new Migrator();
 
     if ($runSetup) {
       $migrator->setup();
     }
-    if ($input->getOption("down")) {
+    if ($this->getOption("down")) {
       $migrator->runDown();
     } else {
       $migrator->runUp();
@@ -266,8 +302,4 @@ class DbMigrate extends Command
   }
 }
 
-$application = new Application("Migrator", "1.0.0");
-$command = new DbMigrate();
-$application->add($command);
-$application->setDefaultCommand($command->getName(), true);
-$application->run();
+(new Application())->execute();
