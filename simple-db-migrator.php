@@ -13,10 +13,9 @@
  *
  */
 
-// Load database credentials from database.php where database configuration is defined
-// eg: $dbConf = [ "dsn" => "mysql:host=localhost;dbname=migrationtest", "user" => "dbuser", "password" => "dbpass", ];
-include __DIR__ . "/db.conf.php";
-
+$dbConf = ["dsn" => "sqlite:./migrationtest.db", "user" => null, "password" => null];
+// $dbConf = [ "dsn" => "mysql:host=172.20.1.3;dbname=migrationtest", "user" => "root", "password" => "xxxxxx", ];
+// $dbConf = [ "dsn" => "pgsql:host=172.17.0.2;dbname=migrationtest", "user" => "postgres", "password" => "xxxxxx", ];
 $MIGRAION_ROOT = __DIR__ . "/migrations";
 $L;
 
@@ -82,13 +81,9 @@ class Migrator
 
   private function runSQLTransaction($sql)
   {
-    $sql = "BEGIN;
-    $sql
-      COMMIT;";
-
     $this->L->debug("Runing SQL");
     $this->L->debug($sql);
-    return $this->db->exec($sql);
+    $res = $this->db->exec("BEGIN;\n" . $sql . "\nCOMMIT;");
   }
 
   /*
@@ -147,11 +142,8 @@ class Migrator
         )
         ->fetchAll();
     } catch (Exception $e) {
-      if ($e->errorInfo[0] == "42S02") {
-        throw new Exception(
-          "db_migrations table doesn't exists. Please run setup"
-        );
-      }
+      $this->L->error("db_migrations table doesn't exists. Please run setup");
+      throw $e;
     }
     if ($result) {
       return $result[0]["version"];
@@ -172,9 +164,14 @@ class Migrator
       $this->db
         ->prepare(
           "INSERT INTO db_migrations
-             (version, created_at, up_sql, down_sql) VALUES (?, now(), ?, ?)"
+             (version, created_at, up_sql, down_sql) VALUES (?, ?, ?, ?)"
         )
-        ->execute([$migrationV, $sql, $migrationItem->getDownSql()]);
+        ->execute([
+          $migrationV,
+          date("Y-m-d H:i:s"),
+          $sql,
+          $migrationItem->getDownSql(),
+        ]);
     }
     $this->L->warning("executed all pending migrations");
   }
@@ -184,10 +181,10 @@ class Migrator
     $this->L->info("Creating db_migrations table ...");
     return $this->db->query("
       CREATE TABLE db_migrations (
-        version int unsigned NOT NULL,
-        created_at datetime DEFAULT NULL,
-        up_sql longtext DEFAULT NULL,
-        down_sql longtext DEFAULT NULL,
+        version int NOT NULL,
+        created_at VARCHAR(20) DEFAULT NULL,
+        up_sql text DEFAULT NULL,
+        down_sql text DEFAULT NULL,
         PRIMARY KEY (version)
       )");
   }
