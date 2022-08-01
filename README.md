@@ -34,14 +34,36 @@ To create a new migration, Just create respective `xxx.sql` file in `up` and `do
 php simple-db-migrator.php -s
 ```
 
+## Show status ( last completed migration and pending migrations )
+```bash
+php simple-db-migrator.php -l
+```
+
 ## Apply all pending migrations ( up )
 ```bash
-php simple-db-migrator.php -u
+php simple-db-migrator.php
 ```
 
 ## Rollback last migration ( down )
 ```bash
 php simple-db-migrator.php -d
+```
+
+## Show help
+```
+$ php simple-db-migrator.php -h
+Description:
+  A simple database migration tool
+
+Usage:
+  php simple-db-migrator.php [options]
+
+Options:
+  -l, --list            Show the current status of applied migrations
+  -s, --setup           Create db_migrations table in db and run all pending migrations
+  -d, --down            Roll back last migration
+  -h, --help            Display help for the given command. When no command is given display help for the db:migrate command
+  -v|vv|vvv, --verbose  Increase the verbosity of messages: 1-3 => info,log,debug
 ```
 
 # Supported RDBMS
