@@ -178,8 +178,17 @@ class Migrator
 
   public function setup()
   {
-    $this->L->info("Creating db_migrations table ...");
-    return $this->db->query("
+    try {
+      $result = $this->db
+        ->query(
+          "SELECT version from db_migrations order by version desc limit 1",
+          PDO::FETCH_ASSOC
+        )
+        ->fetchAll();
+    } catch (Exception $e) {
+      $this->L->warning("db_migrations table doesn't exists.");
+      $this->L->info("Creating db_migrations table ...");
+      return $this->db->query("
       CREATE TABLE db_migrations (
         version int NOT NULL,
         created_at VARCHAR(20) DEFAULT NULL,
@@ -187,6 +196,8 @@ class Migrator
         down_sql text DEFAULT NULL,
         PRIMARY KEY (version)
       )");
+    }
+    $this->L->warning("db_migrations table already exists. Skipping setup");
   }
 
   /*
@@ -235,7 +246,8 @@ class Migrator
     $this->L->warning("Rollback completed");
   }
 
-  function currentStatus(){
+  function currentStatus()
+  {
     $lastRanMigration = $this->getLastRanMigration();
     $this->L->warning("last migration is $lastRanMigration");
     $pendingMigrations = $this->getPendingMigrations();
