@@ -234,13 +234,20 @@ class Migrator
       ->execute([$lastRanMigration]);
     $this->L->warning("Rollback completed");
   }
+
+  function currentStatus(){
+    $lastRanMigration = $this->getLastRanMigration();
+    $this->L->warning("last migration is $lastRanMigration");
+    $pendingMigrations = $this->getPendingMigrations();
+    $this->L->warning("Pending migrations " . json_encode($pendingMigrations));
+  }
 }
 
 class Application
 {
   public function __construct()
   {
-    $this->opts = getopt("dsvh", ["down", "setup", "verbose", "help"]);
+    $this->opts = getopt("ldsvh", ["list", "down", "setup", "verbose", "help"]);
     $this->logLevel = 1;
     $verbose = $this->getOption("verbose");
     if ($verbose) {
@@ -269,6 +276,7 @@ Usage:
   php simple-db-migrator.php [options]
 
 Options:
+  -l, --list            Show the current status of applied migrations
   -s, --setup           Create db_migrations table in db and run all pending migrations
   -d, --down            Roll back last migration
   -h, --help            Display help for the given command. When no command is given display help for the db:migrate command
@@ -284,10 +292,14 @@ Options:
     }
     $L = new Logger($this->logLevel);
     $L->info("Starting migrator");
-    $runSetup = $this->getOption("setup");
     $migrator = new Migrator();
 
-    if ($runSetup) {
+    if ($this->getOption("list")) {
+      $migrator->currentStatus();
+      return;
+    }
+
+    if ($this->getOption("setup")) {
       $migrator->setup();
     }
     if ($this->getOption("down")) {
