@@ -120,7 +120,7 @@ class Migrator
     $out = [];
     foreach ($files as $fname) {
       $match = [];
-      $matches = preg_match('/^([0-9])*.sql$/', $fname, $match);
+      $matches = preg_match('/^([0-9]*).sql$/', $fname, $match);
       if ($matches > 0) {
         $out[] = (int) $match[1];
       }
