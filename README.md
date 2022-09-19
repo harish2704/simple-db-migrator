@@ -72,3 +72,6 @@ Tested with Mysql , PostgreSQL and Sqlite
 # Cavets
 
 1. From [php docs](https://www.php.net/manual/en/pdo.begintransaction.php),  "Some databases, including MySQL, automatically issue an implicit COMMIT when a database definition language (DDL) statement such as DROP TABLE or CREATE TABLE is issued within a transaction. The implicit COMMIT will prevent you from rolling back any other changes within the transaction boundary."
+2. history of completed up/down migrations will be stored in a table called `db_migrations` . By default, this table is created with default encoding of active database . So if your database's default encoding is not utf-8 and you are planing to write some utf-8 string in the migration file, then you need to manually fix the encoding of `db_migrations` table . otherwise, migration tool will fail to save the hisotry of migration ( ie, content of up/down SQL file ) in db. 
+    - I am not integrating this feature into the tool for the sake of simplicity 
+    - it will be better to apply these "alter table" commands as a new migration. 
